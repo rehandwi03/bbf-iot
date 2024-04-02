@@ -1,0 +1,25 @@
+asyncapi: 2.0.0
+info:
+  title: WebSockets echo server
+  version: 1.0.0
+
+servers:
+  localhost:
+    url: localhost
+    protocol: ws
+
+channels:
+  /ws:
+    bindings:
+      ws:
+        bindingVersion: 0.1.0
+    subscribe:
+      message:
+        type: object
+        $ref: '#/components/messages/echo'
+
+components:
+  messages:
+    echo:
+      payload:
+        type: string
