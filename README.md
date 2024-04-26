@@ -14,11 +14,11 @@ This guide provides step-by-step instructions for deploying an Express.js applic
 
 1. **Clone the Repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/bumiclan/BE-IOT-BBF-
    ```
 2. **Navigate to Project Directory:**
    ```bash
-   cd <project-directory>
+   cd https://github.com/bumiclan/BE-IOT-BBF-
    ```
 3. **Copy .env and Please Write Correct Env Values**
    ```bash
@@ -46,11 +46,11 @@ This guide provides step-by-step instructions for deploying an Express.js applic
 
 1. **Clone the Repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/bumiclan/BE-IOT-BBF-
    ```
 2. **Navigate to Project Directory:**
    ```bash
-   cd <project-directory>
+   cd https://github.com/bumiclan/BE-IOT-BBF-
    ```
 3. **Copy .env and Please Write Correct Env Values**
    ```bash
