@@ -1,8 +1,6 @@
 const model = require('../model/waterDischarge')
-const { plainToClass } = require('class-transformer')
 const { WebSocket } = require('ws')
 const { GetWaterDischargeRes } = require('../dto/waterDischarge')
-const { json } = require('body-parser')
 
 class WaterDischargeHandler {
   constructor(cfg, mqttClient, mongoClient, waterDischargeUsecase) {
@@ -12,18 +10,89 @@ class WaterDischargeHandler {
     this.sseClients = []
     this.wsClients = []
     this.waterDischargeUsecase = waterDischargeUsecase
-    // this.subscribeMessage.bind(this)()
     this.eventsHandler = this.sse.bind(this)
     this.eventsHandlerWS = this.ws.bind(this)
     this.saveToDB = this.saveToDB.bind(this)
     this.summary = this.summary.bind(this)
+    this.summaryWithGroup = this.summaryWithGroup.bind(this)
+  }
+
+  async summaryWithGroup(req, res) {
+    const startDateParams = req.query.startDate
+    const endDateParams = req.query.endDate
+
+    if (!startDateParams) {
+      return response.status(400).json({ message: "startDate can't be empty" })
+    }
+    if (!endDateParams) {
+      return response.status(400).json({ message: "endDate can't be empty" })
+    }
+
+    const query = [
+      {
+        $match: {
+          created_at: {
+            $gte: new Date(startDateParams),
+            $lte: new Date(endDateParams),
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            created_at: {
+              $dateToString: {
+                format: '%Y-%m-%d',
+                date: '$created_at',
+              },
+            },
+            type: '$type',
+          },
+          location_id: {
+            $first: '$location_id',
+          },
+          device_id: {
+            $first: '$device_id',
+          },
+          value: {
+            $sum: '$value',
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]
+
+    const db = this.mongoClient.db('bbf-iot')
+    const collection = db.collection('iot-data')
+    const docs = await collection.aggregate(query).toArray()
+
+    const promises = docs.map(async (e) => {
+      const lc = db.collection('location')
+      const location = await lc.findOne({ id: e.location_id })
+
+      var locationName = ''
+      if (location != null) {
+        locationName = location.name
+      }
+
+      const r = new GetWaterDischargeRes(
+        e.location_id,
+        locationName,
+        e._id.type,
+        e.value,
+        e.device_id,
+        e._id.created_at,
+      )
+
+      return r
+    })
+
+    const result = await Promise.all(promises)
+
+    return res.json(result)
   }
 
   async summary(request, response) {
-    // const lastWeek = new Date()
-    // const theDayOfTheLastWeek = lastWeek.getDate() + 7
-    // lastWeek.setDate(theDayOfTheLastWeek)
-
     const startDateParams = request.query.startDate
     const endDateParams = request.query.endDate
 
@@ -44,17 +113,26 @@ class WaterDischargeHandler {
       },
     }
 
+    const sortCriteria = {
+      created_at: 1,
+    }
+
     const db = this.mongoClient.db('bbf-iot')
     const collection = db.collection('iot-data')
-    const docs = await collection.find(query).toArray()
+    const docs = await collection.find(query).sort(sortCriteria).toArray()
 
-    // const result = []
     const promises = docs.map(async (e) => {
       const lc = db.collection('location')
       const location = await lc.findOne({ id: e.location_id })
+
+      var locationName = ''
+      if (location != null) {
+        locationName = location.name
+      }
+
       const res = new GetWaterDischargeRes(
         e.location_id,
-        location.name,
+        locationName,
         e.type,
         e.value,
         e.device_id,
@@ -62,7 +140,6 @@ class WaterDischargeHandler {
       )
 
       return res
-      // result.push(res)
     })
 
     const result = await Promise.all(promises)
@@ -93,17 +170,17 @@ class WaterDischargeHandler {
   }
 
   subscribeMessage() {
-    this.mqttClient.on('message', (topic, message) => {
+    this.mqttClient.on('message', async (topic, message) => {
       if (topic === this.cfg.MQTT_TOPIC) {
-        const payload = JSON.parse(message.toString()) // Parse MQTT message as JSON
+        const payload = JSON.parse(message.toString())
         console.log(payload)
         this.sendMessageToClients(payload)
-        this.saveToDB(payload)
+        await this.saveToDB(payload)
       }
     })
   }
 
-  saveToDB(payload) {
+  async saveToDB(payload) {
     try {
       const datas = new model.WaterDischarge(
         payload.type,
@@ -114,7 +191,7 @@ class WaterDischargeHandler {
       )
 
       const collection = this.mongoClient.db('bbf-iot').collection('iot-data')
-      collection.insertOne(datas)
+      await collection.insertOne(datas)
     } catch (error) {
       throw error
     }
@@ -122,7 +199,7 @@ class WaterDischargeHandler {
 
   sendMessageToClients(payload) {
     this.sseClients.forEach((r) => {
-      r.write(`data: ${JSON.stringify(payload)}\n\n`) // Send MQTT data as JSON in SSE to each client
+      r.write(`data: ${JSON.stringify(payload)}\n\n`)
     })
 
     this.wsClients.forEach(async (c) => {
@@ -134,9 +211,14 @@ class WaterDischargeHandler {
       }
       const location = await collection.findOne(query)
 
+      var locationName = ''
+      if (location.name !== '') {
+        locationName = location.name
+      }
+
       const res = new GetWaterDischargeRes(
         payload.location_id,
-        location.name ?? '',
+        locationName,
         payload.type,
         payload.value,
         payload.device_id,

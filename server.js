@@ -62,7 +62,7 @@ async function start() {
     mqttClient.on('connect', () => {
       console.log('connected')
 
-      mqttClient.subscribe('iot', { qos: 2 })
+      mqttClient.subscribe(cfg.MQTT_TOPIC, { qos: 0 })
     })
 
     mqttClient.on('offline', () => {
