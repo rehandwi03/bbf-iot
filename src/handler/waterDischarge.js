@@ -55,8 +55,16 @@ class WaterDischargeHandler {
             $first: '$device_id',
           },
           value: {
-            $sum: '$value',
+            $avg: '$value',
           },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          location_id: 1,
+          device_id: 1,
+          value: { $round: ['$value', 0] }, // Round the average value
         },
       },
       { $sort: { _id: 1 } },
