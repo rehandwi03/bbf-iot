@@ -55,7 +55,7 @@ class WaterDischargeHandler {
             $first: '$device_id',
           },
           value: {
-            $avg: '$value',
+            $sum: '$value',
           },
         },
       },
