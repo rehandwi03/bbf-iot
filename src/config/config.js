@@ -2,6 +2,7 @@ require('dotenv').config()
 
 class Config {
   constructor() {
+    this.APP_ENV = process.env.APP_ENV
     this.MONGO_USER = process.env.MONGO_USER
     this.MONGO_PASSWORD = process.env.MONGO_PASSWORD
     this.MONGO_HOST = process.env.MONGO_HOST

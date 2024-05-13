@@ -1,3 +1,4 @@
+const { config } = require('dotenv')
 const mqtt = require('mqtt')
 
 const clientId = `mqtt_${Math.random().toString(16).slice(3)}`
@@ -13,6 +14,7 @@ async function connectMQTT(cfg) {
         username: `${cfg.MQTT_USER}`,
         password: `${cfg.MQTT_PASSWORD}`,
         reconnectPeriod: 1000,
+        protocol: cfg.APP_ENV === 'production' ? 'mqtts' : 'mqtt',
       },
     )
 
